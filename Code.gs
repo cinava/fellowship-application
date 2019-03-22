@@ -28,8 +28,26 @@ var _useremail = 'cinava@yahoo.com';
 
 //var _fileUrl;
 
+var _FellowshipTypes = [
+      {
+        "id": "f1",
+        "text": "f1"
+      },
+      {
+        "id": "f2",
+        "text": "f2"
+      },
+      {
+        "id": "f3",
+        "text": "f3"
+      }
+    ];
 
-function doGet(request) {    
+
+function doGet(request) {   
+
+  PropertiesService.getScriptProperties().setProperty('_jstest', 'jstest!!!');
+
   //PropertiesService.getScriptProperties().setProperty('_formCreationTimeStamp', getCurrentTimestamp());
   CacheService.getPrivateCache().put('_formCreationTimeStamp', getCurrentTimestamp(),10800); //expirationInSeconds 10800 sec => 3 hours
     
@@ -347,6 +365,10 @@ function sortByKey(array, key) {
 }
 
 
+function getJsData() {
+  
+    return _FellowshipTypes;
+}
 
 function onFormSuccess_TODEL() {
   //Logger.log('on Form Success');
