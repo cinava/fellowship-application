@@ -28,6 +28,7 @@ var _useremail = 'cinava@yahoo.com';
 
 //var _fileUrl;
 
+//default fellowship types
 var _FellowshipTypes = [
       {
         "id": "f1",
