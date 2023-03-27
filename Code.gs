@@ -4,24 +4,29 @@
 var _templateSSKey = '1ITacytsUV2yChbfOSVjuBoW4aObSr_xBfpt6m_vab48';
 var _backupSSKey = '19KlO1oCC88M436JzCa89xGO08MJ1txQNgLeJI0BpNGo';
 //Destination forlder: ID of the folder where a newly created copy of template spreadsheet will be placed (Spreadsheets).
-var _destinationFolder = '163MoMsFodHxPj98dM-C_cLTVU5bkGHz1'; //'0B2FwyaXvFk1ecEJVeWc3VW1wS2c';
+var _destinationFolder = '1jHjrjBDXKmHXKWfGjkTCjDDPQU3l-Luz'; //folder where the response spreadsheets (forms) are saved;
 //Unique folder name where uploaded files will be placed.
-var _dropbox = "FellowshipApplicantUploads"; 
+var _dropbox = "FellowshipApplicantUploads"; //name of the upload folder. Must be unique on the Google Drive!
+var _configFolderId = "0B2FwyaXvFk1efmlPOEl6WWItcnBveVlDWWh6RTJxYzYyMlY2MjRSalRvUjdjdzMycmo5U3M";
 
-var _colIndexNameMapArray = {};
+var _colIndexNameMapArray = {}; 
 var _uniqueId = null;
 
 var _formCreationTimeStamp = CacheService.getPrivateCache().get('_formCreationTimeStamp');
 
-var _adminemail = 'oli2002@med.cornell.edu';
-var _useremail = 'eah2006@med.cornell.edu';
+var _adminemail = 'oli2002@med.cornell.edu'; //adminEmail
+var _useremail = 'eah2006@med.cornell.edu'; //fellappAdminEmail
 //var _useremail = 'cinava@yahoo.com';
 
-var _maintanance = false;
+var _exceptionAccount = "olegivanov@pathologysystems.org";
+
+var _AcceptingSubmissions = true;
 var _fullValidation = true;
 
+var _applicationFormNote = null;
+
 //Maintenance flag (uncomment for maintenance)
-var _maintanance = true; 
+var _AcceptingSubmissions = false; 
 //var _fullValidation = false; //will validate only fellapp type, names, email, signature
 var _useremail = 'cinava@yahoo.com';
 //EOF Maintenance flag
@@ -29,25 +34,28 @@ var _useremail = 'cinava@yahoo.com';
 //var _fileUrl;
 
 //default fellowship types
-var _FellowshipTypes = [
-      {
-        "id": "f1",
-        "text": "f1"
-      },
-      {
-        "id": "f2",
-        "text": "f2"
-      },
-      {
-        "id": "f3",
-        "text": "f3"
-      }
-    ];
+var _Status = false;
 
+var _FellowshipTypes = [];   
+var _FellowshipVisaStatuses = [];
 
 function doGet(request) {   
 
-  PropertiesService.getScriptProperties().setProperty('_jstest', 'jstest!!!');
+  //Logger.log("reading config data");
+  _AcceptingSubmissions = getConfigParameters("acceptingSubmissions");
+  //_AcceptingSubmissions = false; //testing
+  //var status = getConfigParameter(configFile);
+  //Logger.log('status='+configFile);
+  //Logger.log("_AcceptingSubmissions="+_AcceptingSubmissions);
+  //Logger.log("_FellowshipTypes:");
+  //Logger.log(_FellowshipTypes);
+  //dssrrs.gsgs;
+
+  _adminemail = getConfigParameters("adminEmail");
+  _useremail = getConfigParameters("fellappAdminEmail");
+  _exceptionAccount = getConfigParameters("exceptionAccount");
+
+  //PropertiesService.getScriptProperties().setProperty('_jstest', 'jstest!!!');
 
   //PropertiesService.getScriptProperties().setProperty('_formCreationTimeStamp', getCurrentTimestamp());
   CacheService.getPrivateCache().put('_formCreationTimeStamp', getCurrentTimestamp(),10800); //expirationInSeconds 10800 sec => 3 hours
@@ -55,22 +63,45 @@ function doGet(request) {
   var curUser = Session.getActiveUser().getEmail();
   Logger.log('curUser='+curUser);
     
-  if( _maintanance ) {
-    if( curUser == "olegivanov@pathologysystems.org" ) {
-        _maintanance = false;
+  if( !_AcceptingSubmissions ) {
+    if( curUser == _exceptionAccount ) { //"olegivanov@pathologysystems.org"
+        _AcceptingSubmissions = true;
     }  
   } 
       
-  if( _maintanance ) {    
-     var template = HtmlService.createTemplateFromFile('Maintanance.html'); 
-  } else {
+  if( _AcceptingSubmissions ) {    
      var template = HtmlService.createTemplateFromFile('Form.html');
+     
+     _applicationFormNote = getConfigParameters("applicationFormNote");
+     //_applicationFormNote = "testnote";
+     //Logger.log('_applicationFormNote='+_applicationFormNote);
+     //template.testNote = _applicationFormNote;
+     
+     
+     template.dataFromServerTemplate = { 
+      //Reference fields (13)
+      applicationFormNote: _applicationFormNote,
+      adminEmail: getConfigParameters("adminEmail"),
+      submissionConfirmation: getConfigParameters("submissionConfirmation"), //text shown when the application is submitted
+      visaNote: getConfigParameters("visaNote"),
+      otherExperienceNote: getConfigParameters("otherExperienceNote"),
+      nationalBoardNote: getConfigParameters("nationalBoardNote"),
+      medicalLicenseNote: getConfigParameters("medicalLicenseNote"),
+      boardCertificationNote: getConfigParameters("boardCertificationNote"),
+      referenceLetterNote: getConfigParameters("referenceLetterNote"),
+      signatureStatement: getConfigParameters("signatureStatement"),
+    };
+     
+     
+  } else {
+     var template = HtmlService.createTemplateFromFile('Maintenance.html');      
   }    
   
   //template.action = ScriptApp.getService().getUrl();  
   //Logger.log('url='+ScriptApp.getService().getUrl());
   
-  return template.evaluate().setSandboxMode(HtmlService.SandboxMode.IFRAME);
+  //return template.evaluate().setSandboxMode(HtmlService.SandboxMode.IFRAME);
+  return template.evaluate().setSandboxMode(HtmlService.SandboxMode.IFRAME).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 function doGet_out(request) {  
@@ -368,7 +399,24 @@ function sortByKey(array, key) {
 
 function getJsData() {
   
+  var fellowshipTypes = getConfigParameters("fellowshipTypes");
+  
+  if( !fellowshipTypes ) {
     return _FellowshipTypes;
+  }
+  
+    return fellowshipTypes;
+}
+
+function getJsDataVisaStatuses() {
+  
+  var fellowshipVisaStatuses = getConfigParameters("fellowshipVisaStatuses");
+  
+  if( !fellowshipVisaStatuses ) {
+    return _FellowshipVisaStatuses;
+  }
+  
+    return fellowshipVisaStatuses;
 }
 
 function onFormSuccess_TODEL() {
@@ -394,6 +442,42 @@ function checkNotExistingFieldsSpreadsheet(sheet,fieldName,rowHeader,maxColumn) 
 
 
 
+// function createUniqueIdOld(formObject) {
+
+//   if( _uniqueId ) {
+//      return _uniqueId;
+//   }
+
+//   //Logger.log(formObject);
+//   //validateFormBeforeUpload(formObject);
+//   var lastName = Trim(formObject.lastName);
+//   var firstName = Trim(formObject.firstName);
+//   var email = Trim(formObject.email);
+  
+//   if( !_formCreationTimeStamp || _formCreationTimeStamp == null || _formCreationTimeStamp == "" ) {
+//      Logger.log('_formCreationTimeStamp is invalid, _formCreationTimeStamp='+_formCreationTimeStamp);
+//      _formCreationTimeStamp = getCurrentTimestamp();
+//      CacheService.getPrivateCache().put('_formCreationTimeStamp', _formCreationTimeStamp,21600); //expirationInSeconds 21600 sec=>6 hours
+//   }
+//   var timestamp = _formCreationTimeStamp;  
+//   timestamp = timestamp.replace(" ", "_");
+//   timestamp = timestamp.replace(":", "_");
+  
+//   var uniqueId = email+"_"+lastName+"_"+firstName+"_"+timestamp;
+//   if( uniqueId == null || uniqueId == "" ) {
+//      Logger.log('uniqueId is invalid, uniqueId='+uniqueId);
+//   }
+//   uniqueId = uniqueId.replace(" ", "_");
+//   uniqueId = uniqueId.replace(":", "_");
+//   uniqueId = uniqueId.replace("@", "_");   //@ cause the query sq problem by Google Sheet API
+//   uniqueId = uniqueId.replace(".", "_");
+  
+//   _uniqueId = uniqueId;
+  
+//   //Logger.log(uniqueId);
+//   return uniqueId;
+// }
+
 function createUniqueId(formObject) {
 
   if( _uniqueId ) {
@@ -405,6 +489,9 @@ function createUniqueId(formObject) {
   var lastName = Trim(formObject.lastName);
   var firstName = Trim(formObject.firstName);
   var email = Trim(formObject.email);
+
+  email = strReplaceAll(email,".", "_");
+  email = strReplaceAll(email," ", "_");
   
   if( !_formCreationTimeStamp || _formCreationTimeStamp == null || _formCreationTimeStamp == "" ) {
      Logger.log('_formCreationTimeStamp is invalid, _formCreationTimeStamp='+_formCreationTimeStamp);
@@ -412,22 +499,33 @@ function createUniqueId(formObject) {
      CacheService.getPrivateCache().put('_formCreationTimeStamp', _formCreationTimeStamp,21600); //expirationInSeconds 21600 sec=>6 hours
   }
   var timestamp = _formCreationTimeStamp;  
-  timestamp = timestamp.replace(" ", "_");
-  timestamp = timestamp.replace(":", "_");
+  timestamp = strReplaceAll(timestamp," ", "_");
+  timestamp = strReplaceAll(timestamp,":", "_");
   
   var uniqueId = email+"_"+lastName+"_"+firstName+"_"+timestamp;
   if( uniqueId == null || uniqueId == "" ) {
      Logger.log('uniqueId is invalid, uniqueId='+uniqueId);
   }
-  uniqueId = uniqueId.replace(" ", "_");
-  uniqueId = uniqueId.replace(":", "_");
-  uniqueId = uniqueId.replace("@", "_");   //@ cause the query sq problem by Google Sheet API
-  uniqueId = uniqueId.replace(".", "_");
+  
+  uniqueId = strReplaceAll(uniqueId,",", "_");
+  uniqueId = strReplaceAll(uniqueId,"\"", "_");
+  uniqueId = strReplaceAll(uniqueId,"/", "_");
+  uniqueId = strReplaceAll(uniqueId,"^", "_");
+  uniqueId = strReplaceAll(uniqueId," ", "_");
+  uniqueId = strReplaceAll(uniqueId,":", "_");
+  uniqueId = strReplaceAll(uniqueId,"@", "_");   //@ cause the query sq problem by Google Sheet API
+  uniqueId = strReplaceAll(uniqueId,".", "_");
+  uniqueId = strReplaceAll(uniqueId,"_", "_");
   
   _uniqueId = uniqueId;
   
   //Logger.log(uniqueId);
   return uniqueId;
+}
+function strReplaceAll(subject, search, replacement) {
+  function escapeRegExp(str) { return str.toString().replace(/[^A-Za-z0-9_]/g, '\\$&'); }
+  search = search instanceof RegExp ? search : new RegExp(escapeRegExp(search), 'g');
+  return subject.replace(search, replacement);
 }
 
 
@@ -451,7 +549,14 @@ function validateFormFields(formObject) {
   
   if( Trim(formObject.email) == "" ) {         
      throw new Error("Empty E-mail field");
-  }   
+  } 
+
+  if( Trim(formObject.citizenshipCountry) == "" ) {         
+     throw new Error("Empty Citizenship Country field");
+  } 
+  if( Trim(formObject.visaStatus) == "" ) {         
+     throw new Error("Empty Visa Status field");
+  } 
   
   //validate email for @ and .
   validateEmailFormat(formObject.email,"Applicant");
@@ -592,8 +697,8 @@ function checkIfValueDigit( value ) {
 
 //Uploads
 function uploadFilesPhoto(form) {  
-  var blob = form.applicantPhoto; 
-  blob = setNewBlobName(form,blob,"Photo");
+  var blob = form.applicantPhoto;   
+  blob = setNewBlobName(form,blob,"Photo"); 
   return uploadFile(form,blob);  
 }
 
@@ -627,15 +732,18 @@ function uploadFilesUSMLEScores(form) {
   return uploadFile(form,blob);  
 }
 
+//Make sure to use Rhino JavaScript interpreter: Run->Disable new Apps Script runtime powered by Chrome V8.
 function uploadFile(form,blob) {
     
-  //Logger.log('blob='+blob);
+  //Logger.log('upload blob='+blob);
+  //Logger.log(blob);
   //validateFormBeforeUpload(form);  
     
   try {
           
     var folder, folders = DriveApp.getFoldersByName(_dropbox);
     
+    //TODO: check if the parent is the correct (now the parent is "Responses"). Otherwise the name should be unique.
     if (folders.hasNext()) {
       folder = folders.next();
     } else {
@@ -654,12 +762,15 @@ function uploadFile(form,blob) {
     //var uniqueId = createUniqueId(form);
     //Logger.log('uniqueId='+uniqueId);    
     //blob.setName(uniqueId+"_"+oldBlobName);
-            
+          
+    // Create an image file in Google Drive using the Maps service.
+    //var blobTest = Maps.newStaticMap().setCenter('76 9th Avenue, New York NY').getBlob();
+    //folder.createFile(blobTest);           
     //var blob = form.name;    
+    
     var file = folder.createFile(blob); 
-                      
-    file.setDescription("Uploaded by " + form.firstName + " " + form.lastName);
-        
+                   
+    file.setDescription("Uploaded by " + form.firstName + " " + form.lastName);   
                
     return file.getUrl();
     
@@ -764,5 +875,75 @@ function Trim(string) {
   }
   return string.replace(/\s/g, ""); 
 }
+
+function getConfigParameters(parameterKey) {
+  //var sheetname = "test";
+  //var aUrl = "http://pipes.yahoo.com/pipes/pipe.run?_id=286bbb1d8d30f65b54173b3b752fa4d9&_render=json";
+  //var aUrl = "https://drive.google.com/drive/u/0/folders/0B2FwyaXvFk1efmlPOEl6WWItcnBveVlDWWh6RTJxYzYyMlY2MjRSalRvUjdjdzMycmo5U3M";
+  
+  //Get a reference to the folder    
+  fldr = DriveApp.getFolderById(_configFolderId);
+
+  //Get all files by that name. Put return into a variable
+  allFilesInFolder = fldr.getFilesByName("config.json");
+  //Logger.log('allFilesInFolder: ' + allFilesInFolder);
+  
+  if (allFilesInFolder.hasNext() === false) {
+    //If no file is found, the user gave a non-existent file name
+    return false;
+  };
+  
+  var configFile = null;
+  //cntFiles = 0;
+  //Even if it's only one file, must iterate a while loop in order to access the file.
+  //Google drive will allow multiple files of the same name.
+  while (allFilesInFolder.hasNext()) {
+    //thisFile = allFilesInFolder.next();
+    //cntFiles = cntFiles + 1;
+    //Logger.log('File Count: ' + cntFiles);
+
+    //docContent = thisFile.getAs('application/json');
+    //Logger.log('docContent : ' + docContent );
+    
+    
+    // define a File object variable and set the Media Tyep
+    var file = allFilesInFolder.next();
+    configFile = file.getAs('application/json')
+    
+    // log the contents of the file
+    //Logger.log("configFile:");
+    //Logger.log(configFile.getDataAsString());
+    
+    //return configFile;
+  };
+  
+  //return NULL;
+  
+  var configObject = JSON.parse(configFile.getDataAsString());
+  
+  var parameter = configObject[parameterKey];
+  //Logger.log("parameter:");
+  //Logger.log(parameter);
+  
+  return parameter;
+  
+  _Status = configObject.status;
+  _FellowshipTypes = configObject.fellowshiptypes;
+  fellowshiptypeId = _FellowshipTypes[0].id;
+  fellowshiptypeName = _FellowshipTypes[0].text;
+  //Logger.log("_Status="+_Status);
+  //Logger.log("fellowshiptypeId="+fellowshiptypeId);
+  //Logger.log("fellowshiptypeName="+fellowshiptypeName); 
+  //Logger.log("fellowshipTypes:");
+  //Logger.log(fellowshipTypes);
+  
+  //_FellowshipTypes = fellowshipTypes;
+  
+  //_FellowshipVisaStatuses = configObject.fellowshipVisaStatuses;
+  
+  
+  return configFile;
+}
+
 
 
